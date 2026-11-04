@@ -1,0 +1,3 @@
+query,no_index_ms,with_index_ms,speedup
+Customer purchase history (point lookup),17.75778333346049,0.08275000000139698,214.595568980794
+Monthly revenue by region (range scan),12.01906249965153,2.4970166666510822,4.813368953508471

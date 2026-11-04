@@ -1,0 +1,193 @@
+itemset,size,support
+"Bread, Milk",2,0.1438
+"Butter, Milk",2,0.1304
+"Bread, Butter",2,0.1271
+"Bread, Butter, Milk",3,0.1202
+"Chips, Soda",2,0.1038
+"Lentils, Rice",2,0.0939
+"Cooking Oil, Lentils",2,0.0938
+"Cooking Oil, Rice",2,0.0935
+"Bread, Jam",2,0.0913
+"Cooking Oil, Lentils, Rice",3,0.0898
+"Milk, Sugar",2,0.0859
+"Coffee, Milk",2,0.0851
+"Bananas, Milk",2,0.0758
+"Cereal, Milk",2,0.0754
+"Coffee, Sugar",2,0.0751
+"Cheese, Pasta",2,0.0748
+"Pasta, Pasta Sauce",2,0.0743
+"Cheese, Pasta Sauce",2,0.0736
+"Coffee, Milk, Sugar",3,0.0715
+"Cheese, Pasta, Pasta Sauce",3,0.0698
+"Soap, Toothpaste",2,0.0673
+"Shampoo, Toothpaste",2,0.0668
+"Shampoo, Soap",2,0.0665
+"Bananas, Cereal",2,0.0636
+"Onions, Tomatoes",2,0.063
+"Chicken, Tomatoes",2,0.0628
+"Shampoo, Soap, Toothpaste",3,0.0625
+"Chicken, Onions",2,0.0621
+"Bananas, Cereal, Milk",3,0.0603
+"Chicken, Onions, Tomatoes",3,0.0583
+"Notebook, Pen",2,0.0532
+"Chips, Milk",2,0.0464
+"Milk, Soda",2,0.0461
+"Lentils, Milk",2,0.044
+"Milk, Rice",2,0.0432
+"Cooking Oil, Milk",2,0.0432
+"Jam, Milk",2,0.0413
+"Bread, Soda",2,0.0403
+"Bread, Chips",2,0.0394
+"Cheese, Milk",2,0.0394
+"Bread, Lentils",2,0.0391
+"Milk, Pasta Sauce",2,0.039
+"Bread, Rice",2,0.0389
+"Milk, Pasta",2,0.0381
+"Bread, Cooking Oil",2,0.0374
+"Milk, Toothpaste",2,0.0365
+"Milk, Tomatoes",2,0.0363
+"Milk, Onions",2,0.0358
+"Milk, Shampoo",2,0.0358
+"Milk, Soap",2,0.0357
+"Bread, Sugar",2,0.0349
+"Milk, Pen",2,0.0338
+"Chicken, Milk",2,0.0337
+"Bread, Soap",2,0.0332
+"Bread, Coffee",2,0.0332
+"Bread, Toothpaste",2,0.0331
+"Bread, Pasta",2,0.0327
+"Milk, Notebook",2,0.0327
+"Bread, Cheese",2,0.0326
+"Bread, Shampoo",2,0.0323
+"Bread, Pasta Sauce",2,0.0322
+"Bread, Tomatoes",2,0.0318
+"Bread, Cereal",2,0.0313
+"Bananas, Bread",2,0.0313
+"Bread, Jam, Milk",3,0.0312
+"Bread, Onions",2,0.0309
+"Bread, Chicken",2,0.0299
+"Bread, Notebook",2,0.0299
+"Bread, Pen",2,0.0297
+"Chips, Milk, Soda",3,0.0296
+"Butter, Soda",2,0.0294
+"Butter, Lentils",2,0.0288
+"Butter, Chips",2,0.0286
+"Butter, Rice",2,0.0274
+"Butter, Cooking Oil",2,0.0271
+"Bread, Milk, Sugar",3,0.0271
+"Lentils, Milk, Rice",3,0.0264
+"Cooking Oil, Milk, Rice",3,0.0264
+"Chips, Lentils",2,0.0262
+"Cooking Oil, Lentils, Milk",3,0.0262
+"Bread, Coffee, Milk",3,0.0262
+"Lentils, Soda",2,0.0261
+"Butter, Jam",2,0.0259
+"Rice, Soda",2,0.0255
+"Chips, Rice",2,0.0253
+"Cooking Oil, Lentils, Milk, Rice",4,0.0253
+"Chips, Cooking Oil",2,0.0251
+"Cooking Oil, Soda",2,0.0249
+"Bread, Chips, Soda",3,0.0248
+"Butter, Pasta Sauce",2,0.0244
+"Chips, Jam",2,0.0244
+"Butter, Pasta",2,0.0242
+"Butter, Toothpaste",2,0.024
+"Bananas, Bread, Milk",3,0.0239
+"Bread, Cereal, Milk",3,0.0238
+"Butter, Cheese",2,0.0238
+"Butter, Sugar",2,0.0236
+"Bread, Cooking Oil, Lentils",3,0.0235
+"Butter, Shampoo",2,0.0235
+"Bread, Cooking Oil, Rice",3,0.0234
+"Bread, Lentils, Rice",3,0.0234
+"Butter, Soap",2,0.0234
+"Jam, Soda",2,0.0234
+"Butter, Coffee",2,0.0232
+"Cheese, Chips",2,0.023
+"Jam, Rice",2,0.023
+"Bread, Milk, Soda",3,0.0229
+"Chips, Sugar",2,0.0229
+"Chips, Pasta",2,0.0229
+"Bread, Chips, Milk",3,0.0228
+"Bread, Lentils, Milk",3,0.0227
+"Butter, Tomatoes",2,0.0227
+"Cheese, Soda",2,0.0226
+"Pasta, Soda",2,0.0226
+"Chips, Pasta Sauce",2,0.0225
+"Bread, Cooking Oil, Lentils, Rice",4,0.0225
+"Soda, Sugar",2,0.0224
+"Butter, Pen",2,0.0223
+"Bread, Butter, Jam",3,0.0223
+"Butter, Cereal",2,0.0222
+"Bananas, Butter",2,0.0222
+"Lentils, Pasta",2,0.022
+"Bread, Milk, Rice",3,0.0219
+"Chips, Toothpaste",2,0.0219
+"Jam, Lentils",2,0.0219
+"Cooking Oil, Jam",2,0.0218
+"Coffee, Soda",2,0.0218
+"Butter, Onions",2,0.0217
+"Pasta Sauce, Soda",2,0.0216
+"Butter, Chicken",2,0.0215
+"Butter, Notebook",2,0.0215
+"Bread, Cooking Oil, Milk",3,0.0215
+"Pasta, Rice",2,0.0214
+"Chips, Coffee",2,0.0214
+"Soap, Soda",2,0.0214
+"Lentils, Toothpaste",2,0.0214
+"Cheese, Milk, Pasta",3,0.0213
+"Detergent, Milk",2,0.0213
+"Milk, Tissues",2,0.0212
+"Cereal, Chips",2,0.0212
+"Coffee, Lentils",2,0.0212
+"Pasta Sauce, Rice",2,0.0212
+"Lentils, Pasta Sauce",2,0.0211
+"Cheese, Rice",2,0.0211
+"Cheese, Milk, Pasta Sauce",3,0.021
+"Milk, Pasta, Pasta Sauce",3,0.021
+"Chips, Soap",2,0.0209
+"Bananas, Chips",2,0.0209
+"Ice Cream, Milk",2,0.0209
+"Cheese, Lentils",2,0.0209
+"Milk, Salt",2,0.0208
+"Soda, Toothpaste",2,0.0208
+"Lentils, Sugar",2,0.0208
+"Lentils, Soap",2,0.0208
+"Cookies, Milk",2,0.0208
+"Cooking Oil, Sugar",2,0.0207
+"Bananas, Soda",2,0.0207
+"Butter, Lentils, Milk",3,0.0207
+"Coffee, Cooking Oil",2,0.0207
+"Rice, Sugar",2,0.0207
+"Chips, Shampoo",2,0.0207
+"Butter, Milk, Sugar",3,0.0206
+"Onions, Soda",2,0.0206
+"Chips, Tomatoes",2,0.0206
+"Cooking Oil, Pasta",2,0.0206
+"Cereal, Soda",2,0.0205
+"Shampoo, Soda",2,0.0205
+"Rice, Toothpaste",2,0.0205
+"Rice, Soap",2,0.0204
+"Butter, Milk, Soda",3,0.0204
+"Frozen Peas, Milk",2,0.0204
+"Chocolate, Milk",2,0.0204
+"Bananas, Rice",2,0.0204
+"Cooking Oil, Toothpaste",2,0.0204
+"Bread, Butter, Soda",3,0.0204
+"Cooking Oil, Soap",2,0.0203
+"Chicken, Soda",2,0.0203
+"Chips, Onions",2,0.0203
+"Cereal, Rice",2,0.0203
+"Butter, Chips, Milk",3,0.0203
+"Eggs, Milk",2,0.0202
+"Batteries, Milk",2,0.0202
+"Chicken, Chips",2,0.0202
+"Fish, Milk",2,0.0202
+"Cereal, Lentils",2,0.0202
+"Jam, Sugar",2,0.0202
+"Cheese, Cooking Oil",2,0.0201
+"Bread, Butter, Chips",3,0.02
+"Cooking Oil, Pasta Sauce",2,0.02
+"Bread, Butter, Lentils",3,0.02
+"Dish Soap, Milk",2,0.02
+"Coffee, Rice",2,0.02

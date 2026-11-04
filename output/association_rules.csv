@@ -1,0 +1,129 @@
+antecedent,consequent,support,confidence,lift
+"Chicken, Onions",Tomatoes,0.0583,0.9388,7.426
+"Onions, Tomatoes",Chicken,0.0583,0.9251,7.42
+"Chicken, Tomatoes",Onions,0.0583,0.9284,7.311
+"Shampoo, Toothpaste",Soap,0.0625,0.936,7.279
+"Soap, Toothpaste",Shampoo,0.0625,0.9276,7.184
+"Shampoo, Soap",Toothpaste,0.0625,0.9391,7.165
+"Cheese, Pasta Sauce",Pasta,0.0698,0.9494,6.901
+"Cheese, Pasta",Pasta Sauce,0.0698,0.9341,6.898
+"Pasta, Pasta Sauce",Cheese,0.0698,0.9404,6.849
+"Cereal, Milk",Bananas,0.0603,0.8,6.27
+"Bread, Lentils, Rice",Cooking Oil,0.0225,0.9606,6.254
+"Lentils, Milk, Rice",Cooking Oil,0.0253,0.9574,6.233
+"Lentils, Rice",Cooking Oil,0.0898,0.9561,6.224
+"Cooking Oil, Lentils, Milk",Rice,0.0253,0.9638,6.193
+"Bananas, Milk",Cereal,0.0603,0.796,6.189
+"Milk, Sugar",Coffee,0.0715,0.8327,6.167
+"Bread, Cooking Oil, Lentils",Rice,0.0225,0.9595,6.166
+"Cooking Oil, Lentils",Rice,0.0898,0.9568,6.148
+"Bread, Cooking Oil, Rice",Lentils,0.0225,0.9606,6.131
+"Cooking Oil, Rice",Lentils,0.0898,0.9599,6.127
+"Coffee, Milk",Sugar,0.0715,0.8402,6.112
+"Cooking Oil, Milk, Rice",Lentils,0.0253,0.9574,6.111
+"Bread, Milk",Butter,0.1202,0.8362,4.575
+"Milk, Pasta",Cheese,0.0213,0.5601,4.079
+"Milk, Pasta",Pasta Sauce,0.021,0.5515,4.073
+Coffee,Sugar,0.0751,0.5562,4.046
+Sugar,Coffee,0.0751,0.5463,4.046
+"Bread, Cooking Oil",Rice,0.0234,0.6262,4.024
+Soap,Shampoo,0.0665,0.5174,4.007
+Shampoo,Soap,0.0665,0.5152,4.007
+"Bread, Cooking Oil",Lentils,0.0235,0.6268,4.001
+Soap,Toothpaste,0.0673,0.5238,3.996
+Toothpaste,Soap,0.0673,0.5138,3.996
+Pasta Sauce,Pasta,0.0743,0.5485,3.987
+Pasta,Pasta Sauce,0.0743,0.5399,3.987
+Chicken,Tomatoes,0.0628,0.5039,3.986
+Tomatoes,Chicken,0.0628,0.4969,3.986
+"Milk, Rice",Cooking Oil,0.0264,0.6104,3.974
+Cheese,Pasta,0.0748,0.5446,3.959
+Pasta,Cheese,0.0748,0.5435,3.959
+Pasta Sauce,Cheese,0.0736,0.5433,3.957
+Cheese,Pasta Sauce,0.0736,0.5359,3.957
+Shampoo,Toothpaste,0.0668,0.5169,3.944
+Toothpaste,Shampoo,0.0668,0.5093,3.944
+"Cheese, Milk",Pasta Sauce,0.021,0.5323,3.931
+"Cheese, Milk",Pasta,0.0213,0.5406,3.929
+Tomatoes,Onions,0.063,0.4987,3.928
+Onions,Tomatoes,0.063,0.4966,3.928
+Chicken,Onions,0.0621,0.4983,3.924
+Onions,Chicken,0.0621,0.4893,3.924
+"Cooking Oil, Milk",Rice,0.0264,0.6104,3.922
+"Bread, Rice",Cooking Oil,0.0234,0.6024,3.922
+"Milk, Pasta Sauce",Cheese,0.021,0.5385,3.922
+"Milk, Pasta Sauce",Pasta,0.021,0.5385,3.914
+Cooking Oil,Rice,0.0935,0.6089,3.913
+Rice,Cooking Oil,0.0935,0.601,3.913
+"Bread, Lentils",Cooking Oil,0.0235,0.6,3.906
+Cooking Oil,Lentils,0.0938,0.6108,3.899
+Lentils,Cooking Oil,0.0938,0.5989,3.899
+"Chips, Milk",Soda,0.0296,0.6397,3.896
+"Milk, Rice",Lentils,0.0264,0.6104,3.896
+"Milk, Soda",Chips,0.0296,0.6432,3.893
+"Lentils, Milk",Cooking Oil,0.0262,0.5967,3.885
+Bananas,Cereal,0.0636,0.4986,3.877
+Cereal,Bananas,0.0636,0.4947,3.877
+"Cooking Oil, Milk",Lentils,0.0262,0.6064,3.87
+"Lentils, Milk",Rice,0.0264,0.6007,3.86
+Rice,Lentils,0.0939,0.6034,3.851
+"Bread, Lentils",Rice,0.0234,0.5994,3.851
+Lentils,Rice,0.0939,0.5993,3.851
+"Bread, Rice",Lentils,0.0234,0.6024,3.845
+"Bread, Chips",Soda,0.0248,0.6307,3.841
+Soda,Chips,0.1038,0.6319,3.824
+Chips,Soda,0.1038,0.6279,3.824
+Notebook,Pen,0.0532,0.4506,3.799
+Pen,Notebook,0.0532,0.4488,3.799
+"Bread, Soda",Chips,0.0248,0.6166,3.732
+"Butter, Milk",Bread,0.1202,0.9222,3.689
+"Butter, Jam",Bread,0.0223,0.8609,3.444
+"Coffee, Sugar",Milk,0.0715,0.9524,3.341
+"Bananas, Cereal",Milk,0.0603,0.9477,3.324
+"Bread, Butter",Milk,0.1202,0.9463,3.319
+"Butter, Sugar",Milk,0.0206,0.8727,3.061
+"Jam, Milk",Bread,0.0312,0.7567,3.027
+"Butter, Chips",Bread,0.02,0.7023,2.81
+"Bread, Lentils",Butter,0.02,0.5118,2.8
+"Butter, Lentils",Bread,0.02,0.6965,2.787
+"Bread, Chips",Butter,0.02,0.5089,2.784
+Butter,Bread,0.1271,0.6953,2.782
+Bread,Butter,0.1271,0.5084,2.782
+"Butter, Soda",Bread,0.0204,0.6928,2.772
+"Bread, Soda",Butter,0.0204,0.505,2.763
+"Bread, Coffee",Milk,0.0262,0.7871,2.761
+"Bread, Sugar",Milk,0.0271,0.7771,2.726
+"Bananas, Bread",Milk,0.0239,0.7622,2.673
+"Bread, Cereal",Milk,0.0238,0.7618,2.672
+"Lentils, Milk",Butter,0.0207,0.4704,2.574
+"Butter, Lentils",Milk,0.0207,0.7191,2.522
+Jam,Bread,0.0913,0.63,2.521
+Bread,Jam,0.0913,0.3654,2.521
+Butter,Milk,0.1304,0.7134,2.502
+Milk,Butter,0.1304,0.4574,2.502
+"Butter, Chips",Milk,0.0203,0.7119,2.497
+"Butter, Soda",Milk,0.0204,0.6953,2.439
+"Milk, Soda",Butter,0.0204,0.4431,2.424
+"Chips, Milk",Butter,0.0203,0.4385,2.399
+Coffee,Milk,0.0851,0.6304,2.211
+Sugar,Milk,0.0859,0.6248,2.192
+Milk,Sugar,0.0859,0.3013,2.192
+Bananas,Milk,0.0758,0.5937,2.082
+"Lentils, Milk",Bread,0.0227,0.5171,2.069
+Cereal,Milk,0.0754,0.586,2.055
+"Bread, Lentils",Milk,0.0227,0.5808,2.037
+"Bread, Chips",Milk,0.0228,0.5799,2.034
+"Milk, Rice",Bread,0.0219,0.5064,2.026
+Bread,Milk,0.1438,0.5753,2.018
+Milk,Bread,0.1438,0.5044,2.018
+"Bread, Cooking Oil",Milk,0.0215,0.5741,2.014
+"Bread, Soda",Milk,0.0229,0.5682,1.993
+"Cooking Oil, Milk",Bread,0.0215,0.4971,1.989
+"Milk, Soda",Bread,0.0229,0.4967,1.987
+"Bread, Rice",Milk,0.0219,0.5626,1.973
+"Chips, Milk",Bread,0.0228,0.493,1.972
+"Cereal, Milk",Bread,0.0238,0.3161,1.265
+"Milk, Sugar",Bread,0.0271,0.3155,1.262
+"Bananas, Milk",Bread,0.0239,0.3152,1.261
+"Coffee, Milk",Bread,0.0262,0.3072,1.229
+"Bread, Jam",Milk,0.0312,0.3422,1.2

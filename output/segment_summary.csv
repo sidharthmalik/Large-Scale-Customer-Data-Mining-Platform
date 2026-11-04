@@ -1,0 +1,5 @@
+segment,customers,avg_recency_days,avg_orders,avg_spend,total_revenue
+Champions (high value),502,14.0,32.4,38645.6,19400090.0
+Loyal Regulars,1064,22.4,15.6,12556.0,13359595.0
+Occasional Buyers,762,50.8,5.9,4563.9,3477675.0
+Lost / Churned,659,267.1,4.0,3234.3,2131425.0
