@@ -1,0 +1,692 @@
+"""
+=====================================================================
+ ADBMS MINI PROJECT
+ Large-Scale Customer Data Mining Platform
+=====================================================================
+ Analyses customer transaction data to discover:
+   1. Frequently purchased products / product combinations (Apriori)
+   2. Association rules (support, confidence, lift)
+   3. Customer segments (RFM + K-Means clustering)
+
+ ADBMS concepts demonstrated (mapped to Course Outcomes):
+   CO1 - Normalised schema (3NF), distributed DB principles (sharding)
+   CO2 - Database design, SQL query processing, ACID transactions
+   CO3 - Indexing + EXPLAIN QUERY PLAN, query optimisation timings
+   CO4 - Scatter-gather consistency check across shards, integrity
+   CO5 - Scalable design: partitioning, batch inserts, streaming ingest
+
+ Requirements:  pip install pandas numpy scikit-learn matplotlib
+ Run:           python customer_mining_platform.py
+ Output:        ./output/ (CSV reports + PNG charts)
+=====================================================================
+"""
+
+import os
+import sqlite3
+import time
+import random
+from itertools import combinations
+
+import numpy as np
+import pandas as pd
+import matplotlib
+matplotlib.use("Agg")          # works without a display
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
+from sklearn.decomposition import PCA
+
+# ---------------------------------------------------------------
+# CONFIGURATION  (increase N_* values to test "large-scale")
+# ---------------------------------------------------------------
+SEED = 42
+N_CUSTOMERS = 3000
+N_ORDERS = 40000
+MIN_SUPPORT = 0.02        # itemset must appear in >= 2% of baskets
+MIN_CONFIDENCE = 0.30     # rule must hold >= 30% of the time
+MIN_LIFT = 1.2            # rule must be better than random chance
+# Save everything next to this script (works no matter where you run it from)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUT_DIR = os.path.join(BASE_DIR, "output")
+DB_FILE = os.path.join(BASE_DIR, "customers.db")
+REGIONS = ["North", "South", "East", "West"]
+
+random.seed(SEED)
+np.random.seed(SEED)
+os.makedirs(OUT_DIR, exist_ok=True)
+
+
+def banner(text):
+    print("\n" + "=" * 70 + f"\n {text}\n" + "=" * 70)
+
+
+# ===============================================================
+# STEP 1: DATABASE DESIGN  (CO1, CO2)  -  Normalised 3NF schema
+# ===============================================================
+SCHEMA = """
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS customers;
+
+CREATE TABLE customers (
+    customer_id INTEGER PRIMARY KEY,
+    name        TEXT NOT NULL,
+    region      TEXT NOT NULL,
+    join_date   TEXT NOT NULL
+);
+
+CREATE TABLE products (
+    product_id  INTEGER PRIMARY KEY,
+    name        TEXT NOT NULL UNIQUE,
+    category    TEXT NOT NULL,
+    price       REAL NOT NULL CHECK (price > 0)
+);
+
+CREATE TABLE orders (
+    order_id    INTEGER PRIMARY KEY,
+    customer_id INTEGER NOT NULL,
+    order_date  TEXT NOT NULL,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+);
+
+CREATE TABLE order_items (
+    order_id    INTEGER NOT NULL,
+    product_id  INTEGER NOT NULL,
+    quantity    INTEGER NOT NULL CHECK (quantity > 0),
+    PRIMARY KEY (order_id, product_id),
+    FOREIGN KEY (order_id)   REFERENCES orders(order_id),
+    FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+"""
+
+PRODUCTS = [
+    # (name, category, price)
+    ("Bread", "Bakery", 40), ("Butter", "Dairy", 55), ("Milk", "Dairy", 30),
+    ("Cheese", "Dairy", 90), ("Eggs", "Dairy", 70), ("Jam", "Bakery", 85),
+    ("Coffee", "Beverages", 150), ("Tea", "Beverages", 120), ("Sugar", "Grocery", 45),
+    ("Cereal", "Grocery", 180), ("Rice", "Grocery", 90), ("Lentils", "Grocery", 110),
+    ("Cooking Oil", "Grocery", 160), ("Salt", "Grocery", 20), ("Pasta", "Grocery", 75),
+    ("Pasta Sauce", "Grocery", 95), ("Chips", "Snacks", 30), ("Soda", "Beverages", 45),
+    ("Cookies", "Snacks", 50), ("Chocolate", "Snacks", 60), ("Ice Cream", "Frozen", 120),
+    ("Frozen Peas", "Frozen", 65), ("Apples", "Fruits", 140), ("Bananas", "Fruits", 60),
+    ("Oranges", "Fruits", 90), ("Tomatoes", "Vegetables", 40), ("Onions", "Vegetables", 35),
+    ("Potatoes", "Vegetables", 30), ("Spinach", "Vegetables", 25), ("Chicken", "Meat", 220),
+    ("Fish", "Meat", 260), ("Shampoo", "Personal Care", 190), ("Soap", "Personal Care", 40),
+    ("Toothpaste", "Personal Care", 85), ("Detergent", "Household", 210),
+    ("Dish Soap", "Household", 95), ("Tissues", "Household", 70), ("Batteries", "Household", 130),
+    ("Notebook", "Stationery", 60), ("Pen", "Stationery", 10),
+]
+
+# Planted buying patterns so the miner has real rules to discover
+PATTERNS = [
+    (["Bread", "Butter", "Milk"], 0.12),
+    (["Bread", "Jam"], 0.08),
+    (["Chips", "Soda"], 0.10),
+    (["Pasta", "Pasta Sauce", "Cheese"], 0.07),
+    (["Coffee", "Sugar", "Milk"], 0.07),
+    (["Rice", "Lentils", "Cooking Oil"], 0.09),
+    (["Shampoo", "Soap", "Toothpaste"], 0.06),
+    (["Cereal", "Milk", "Bananas"], 0.06),
+    (["Chicken", "Onions", "Tomatoes"], 0.06),
+    (["Notebook", "Pen"], 0.05),
+]
+
+
+def create_database(conn):
+    """Create schema and fill it with synthetic data (batch inserts)."""
+    banner("STEP 1: Creating normalised schema & loading data")
+    cur = conn.cursor()
+    cur.executescript(SCHEMA)
+
+    cur.executemany(
+        "INSERT INTO products(name, category, price) VALUES (?,?,?)", PRODUCTS)
+    name_to_id = {n: i + 1 for i, (n, _, _) in enumerate(PRODUCTS)}
+
+    # Customers (with different "personalities" for clustering later)
+    customers = []
+    for cid in range(1, N_CUSTOMERS + 1):
+        join = pd.Timestamp("2022-01-01") + pd.Timedelta(days=random.randint(0, 700))
+        customers.append((cid, f"Customer_{cid}", random.choice(REGIONS),
+                          join.strftime("%Y-%m-%d")))
+    cur.executemany("INSERT INTO customers VALUES (?,?,?,?)", customers)
+
+    # Customer behaviour types: loyal / regular / occasional / lapsed
+    types = np.random.choice(
+        ["loyal", "regular", "occasional", "lapsed"],
+        size=N_CUSTOMERS, p=[0.15, 0.35, 0.30, 0.20])
+    weights = np.array([{"loyal": 8, "regular": 4, "occasional": 1.5,
+                         "lapsed": 1}[t] for t in types], dtype=float)
+    weights /= weights.sum()
+    start = pd.Timestamp("2024-01-01")
+    end = pd.Timestamp("2024-12-31")
+    span = (end - start).days
+
+    orders, items = [], []
+    price_idx = {n: p for n, _, p in PRODUCTS}
+    all_names = list(name_to_id.keys())
+    for oid in range(1, N_ORDERS + 1):
+        c = np.random.choice(N_CUSTOMERS, p=weights)
+        ctype = types[c]
+        if ctype == "lapsed":                       # bought only early in the year
+            day = random.randint(0, span // 3)
+        elif ctype == "occasional":
+            day = random.randint(0, span)
+        else:
+            day = int(np.random.beta(3, 1.5) * span)  # skewed to recent dates
+        odate = (start + pd.Timedelta(days=day)).strftime("%Y-%m-%d")
+        orders.append((oid, int(c) + 1, odate))
+
+        basket = set()
+        for pat, prob in PATTERNS:                  # planted patterns
+            if random.random() < prob:
+                basket.update(pat)
+        for _ in range(random.randint(1, 5)):       # random extra items
+            basket.add(random.choice(all_names))
+        if not basket:
+            basket.add(random.choice(all_names))
+        for pname in basket:
+            qty = random.randint(1, 3) if ctype != "loyal" else random.randint(1, 5)
+            items.append((oid, name_to_id[pname], qty))
+
+    t0 = time.time()
+    cur.executemany("INSERT INTO orders VALUES (?,?,?)", orders)
+    cur.executemany("INSERT INTO order_items VALUES (?,?,?)", items)
+    conn.commit()
+    print(f"Customers : {N_CUSTOMERS:,}")
+    print(f"Products  : {len(PRODUCTS):,}")
+    print(f"Orders    : {len(orders):,}")
+    print(f"Line items: {len(items):,}")
+    print(f"Batch insert time: {time.time() - t0:.2f}s")
+
+
+# ===============================================================
+# STEP 2: TRANSACTION HANDLING / ACID DEMO  (CO2)
+# ===============================================================
+def demo_transaction(conn):
+    banner("STEP 2: ACID transaction demo (atomicity + rollback)")
+    cur = conn.cursor()
+    before = cur.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
+    try:
+        cur.execute("BEGIN")
+        cur.execute("INSERT INTO orders VALUES (999999, 1, '2024-12-31')")
+        # This violates the CHECK constraint (quantity > 0) -> whole txn fails
+        cur.execute("INSERT INTO order_items VALUES (999999, 1, -5)")
+        conn.commit()
+    except sqlite3.IntegrityError as e:
+        conn.rollback()
+        print(f"Constraint violated -> {e}")
+        print("Transaction rolled back (Atomicity preserved).")
+    after = cur.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
+    print(f"Orders before: {before:,} | after: {after:,} "
+          f"-> {'CONSISTENT' if before == after else 'INCONSISTENT'}")
+
+
+# ===============================================================
+# STEP 3: INDEXING & QUERY OPTIMISATION  (CO3)
+# ===============================================================
+def demo_indexing(conn):
+    banner("STEP 3: Indexing & query optimisation")
+    cur = conn.cursor()
+    queries = {
+        "Customer purchase history (point lookup)": """
+            SELECT p.name, SUM(oi.quantity) AS units
+            FROM orders o
+            JOIN order_items oi ON oi.order_id = o.order_id
+            JOIN products p     ON p.product_id = oi.product_id
+            WHERE o.customer_id = 1234
+            GROUP BY p.name ORDER BY units DESC""",
+        "Monthly revenue by region (range scan)": """
+            SELECT c.region, SUM(oi.quantity * p.price) AS revenue
+            FROM orders o
+            JOIN customers c    ON c.customer_id = o.customer_id
+            JOIN order_items oi ON oi.order_id   = o.order_id
+            JOIN products p     ON p.product_id  = oi.product_id
+            WHERE o.order_date BETWEEN '2024-06-01' AND '2024-06-07'
+            GROUP BY c.region""",
+    }
+
+    def run_timed(q, reps=30):
+        cur.execute(q).fetchall()                    # warm-up
+        t = time.perf_counter()
+        for _ in range(reps):
+            cur.execute(q).fetchall()
+        return (time.perf_counter() - t) / reps * 1000
+
+    for idx in ("idx_orders_date", "idx_orders_customer", "idx_items_product"):
+        cur.execute(f"DROP INDEX IF EXISTS {idx}")
+    conn.commit()
+
+    before = {}
+    for name, q in queries.items():
+        print(f"--- BEFORE index: {name} ---")
+        for row in cur.execute("EXPLAIN QUERY PLAN " + q):
+            print("   ", row[-1])
+        before[name] = run_timed(q)
+
+    cur.execute("CREATE INDEX idx_orders_date     ON orders(order_date)")
+    cur.execute("CREATE INDEX idx_orders_customer ON orders(customer_id)")
+    cur.execute("CREATE INDEX idx_items_product   ON order_items(product_id)")
+    conn.commit()
+    cur.execute("ANALYZE")
+
+    rows = []
+    for name, q in queries.items():
+        print(f"\n--- AFTER index: {name} ---")
+        for row in cur.execute("EXPLAIN QUERY PLAN " + q):
+            print("   ", row[-1])
+        after = run_timed(q)
+        sp = before[name] / max(after, 1e-9)
+        print(f"   Time: {before[name]:.3f} ms -> {after:.3f} ms  "
+              f"(speed-up {sp:.1f}x)")
+        rows.append({"query": name, "no_index_ms": before[name],
+                     "with_index_ms": after, "speedup": sp})
+
+    df = pd.DataFrame(rows)
+    df.to_csv(f"{OUT_DIR}/index_performance.csv", index=False)
+
+    x = np.arange(len(df))
+    plt.figure(figsize=(7, 4))
+    plt.bar(x - 0.2, df["no_index_ms"], 0.4, label="No index", color="#d9534f")
+    plt.bar(x + 0.2, df["with_index_ms"], 0.4, label="With index", color="#5cb85c")
+    plt.xticks(x, ["Point lookup", "Range scan"])
+    plt.ylabel("Avg query time (ms)")
+    plt.title("Effect of Indexing on Query Performance")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{OUT_DIR}/index_performance.png", dpi=120)
+    plt.close()
+
+
+# ===============================================================
+# STEP 4: DISTRIBUTED DATABASE SIMULATION  (CO1, CO4, CO5)
+#   Horizontal fragmentation by REGION -> one shard per region.
+#   Query is executed on every shard (scatter) and merged (gather).
+# ===============================================================
+def demo_distributed(conn):
+    banner("STEP 4: Distributed DB - horizontal fragmentation (sharding)")
+    shards = {}
+    for region in REGIONS:
+        s = sqlite3.connect(":memory:")
+        s.executescript("""
+            CREATE TABLE customers (customer_id INTEGER PRIMARY KEY, name TEXT,
+                                    region TEXT, join_date TEXT);
+            CREATE TABLE orders (order_id INTEGER PRIMARY KEY,
+                                 customer_id INTEGER, order_date TEXT);
+            CREATE TABLE order_items (order_id INTEGER, product_id INTEGER,
+                                      quantity INTEGER);
+            CREATE TABLE products (product_id INTEGER PRIMARY KEY, name TEXT,
+                                   category TEXT, price REAL);   -- replicated
+        """)
+        shards[region] = s
+
+    # Replicate small dimension table (products) to every shard
+    prods = conn.execute("SELECT * FROM products").fetchall()
+    for s in shards.values():
+        s.executemany("INSERT INTO products VALUES (?,?,?,?)", prods)
+
+    # Fragment large tables by region
+    for region, s in shards.items():
+        cust = conn.execute(
+            "SELECT * FROM customers WHERE region=?", (region,)).fetchall()
+        s.executemany("INSERT INTO customers VALUES (?,?,?,?)", cust)
+        orders = conn.execute("""SELECT o.* FROM orders o JOIN customers c
+                                 ON c.customer_id=o.customer_id
+                                 WHERE c.region=?""", (region,)).fetchall()
+        s.executemany("INSERT INTO orders VALUES (?,?,?)", orders)
+        oi = conn.execute("""SELECT oi.* FROM order_items oi
+                             JOIN orders o ON o.order_id=oi.order_id
+                             JOIN customers c ON c.customer_id=o.customer_id
+                             WHERE c.region=?""", (region,)).fetchall()
+        s.executemany("INSERT INTO order_items VALUES (?,?,?)", oi)
+        s.commit()
+        print(f"Shard [{region:<5}] -> {len(cust):>5,} customers | "
+              f"{len(orders):>6,} orders | {len(oi):>7,} items")
+
+    # Global query: revenue per category
+    q = """SELECT p.category, SUM(oi.quantity * p.price)
+           FROM order_items oi JOIN products p ON p.product_id = oi.product_id
+           GROUP BY p.category"""
+
+    # Scatter-gather: run on every shard, then merge partial results
+    def scatter_gather():
+        out = {}
+        for sh in shards.values():
+            for cat, rev in sh.execute(q):
+                out[cat] = out.get(cat, 0) + rev
+        return out
+
+    def best_ms(fn, reps=5):
+        best = 1e9
+        for _ in range(reps):
+            t = time.perf_counter()
+            fn()
+            best = min(best, time.perf_counter() - t)
+        return best * 1000
+
+    merged = scatter_gather()
+    central = dict(conn.execute(q).fetchall())
+    t_dist = best_ms(scatter_gather)
+    t_cent = best_ms(lambda: conn.execute(q).fetchall())
+    print("(Shards are simulated on one machine; on real nodes they would"
+          " run in parallel.)")
+
+    # CO4: consistency check
+    consistent = all(abs(central[k] - merged[k]) < 1e-6 for k in central)
+    print(f"\nCentralised query: {t_cent:.2f} ms | "
+          f"Scatter-gather query: {t_dist:.2f} ms")
+    print("Consistency check (central == merged shards):",
+          "PASSED" if consistent else "FAILED")
+
+    df = pd.DataFrame(sorted(merged.items(), key=lambda x: -x[1]),
+                      columns=["category", "revenue"])
+    df.to_csv(f"{OUT_DIR}/revenue_by_category.csv", index=False)
+    plt.figure(figsize=(8, 4))
+    plt.barh(df["category"][::-1], df["revenue"][::-1], color="#337ab7")
+    plt.xlabel("Revenue")
+    plt.title("Revenue by Category (merged from distributed shards)")
+    plt.tight_layout()
+    plt.savefig(f"{OUT_DIR}/revenue_by_category.png", dpi=120)
+    plt.close()
+
+
+# ===============================================================
+# STEP 5: ASSOCIATION RULE MINING - APRIORI (from scratch)
+# ===============================================================
+def load_basket_matrix(conn):
+    """Return boolean basket matrix: rows = orders, columns = products."""
+    df = pd.read_sql_query("""
+        SELECT oi.order_id, p.name AS product
+        FROM order_items oi JOIN products p ON p.product_id = oi.product_id
+    """, conn)
+    basket = pd.crosstab(df["order_id"], df["product"]).clip(upper=1).astype(bool)
+    return basket
+
+
+def apriori(basket, min_support):
+    """Level-wise Apriori. Returns {frozenset(items): support}."""
+    M = basket.values
+    cols = list(basket.columns)
+    n = M.shape[0]
+
+    def support(idx_tuple):
+        return M[:, list(idx_tuple)].all(axis=1).sum() / n
+
+    # L1
+    freq = {}
+    current = []
+    for i in range(len(cols)):
+        s = M[:, i].sum() / n
+        if s >= min_support:
+            freq[frozenset([cols[i]])] = s
+            current.append((i,))
+    k = 2
+    while current:
+        # candidate generation (join step) + prune step
+        prev_set = set(current)
+        cands = set()
+        for a, b in combinations(current, 2):
+            if a[:-1] == b[:-1]:
+                cand = tuple(sorted(set(a) | set(b)))
+                if all(sub in prev_set for sub in combinations(cand, k - 1)):
+                    cands.add(cand)
+        nxt = []
+        for cand in cands:
+            s = support(cand)
+            if s >= min_support:
+                freq[frozenset(cols[i] for i in cand)] = s
+                nxt.append(cand)
+        current = sorted(nxt)
+        k += 1
+    return freq
+
+
+def generate_rules(freq, min_conf, min_lift):
+    """Build rules A -> b (single-item consequent) from frequent itemsets."""
+    rules = []
+    for itemset, sup in freq.items():
+        if len(itemset) < 2:
+            continue
+        for cons_item in itemset:
+            ante = itemset - {cons_item}
+            cons = frozenset([cons_item])
+            conf = sup / freq[ante]
+            lift = conf / freq[cons]
+            if conf >= min_conf and lift >= min_lift:
+                rules.append({
+                    "antecedent": ", ".join(sorted(ante)),
+                    "consequent": cons_item,
+                    "support": round(sup, 4),
+                    "confidence": round(conf, 4),
+                    "lift": round(lift, 3),
+                })
+    if not rules:
+        return pd.DataFrame()
+    return (pd.DataFrame(rules)
+            .sort_values(["lift", "confidence"], ascending=False)
+            .reset_index(drop=True))
+
+
+def run_association_mining(conn):
+    banner("STEP 5: Association rule mining (Apriori)")
+    basket = load_basket_matrix(conn)
+    print(f"Basket matrix: {basket.shape[0]:,} transactions x "
+          f"{basket.shape[1]} products")
+
+    t = time.time()
+    freq = apriori(basket, MIN_SUPPORT)
+    print(f"Apriori finished in {time.time() - t:.2f}s | "
+          f"frequent itemsets found: {len(freq)}")
+
+    # Frequently purchased products
+    singles = (pd.Series({list(k)[0]: v for k, v in freq.items() if len(k) == 1})
+               .sort_values(ascending=False))
+    print("\nTop 10 most frequently purchased products:")
+    print(singles.head(10).round(4).to_string())
+    singles.to_csv(f"{OUT_DIR}/frequent_products.csv", header=["support"])
+
+    # Frequent itemsets of size >= 2
+    multi = pd.DataFrame(
+        [{"itemset": ", ".join(sorted(k)), "size": len(k), "support": round(v, 4)}
+         for k, v in freq.items() if len(k) >= 2]
+    ).sort_values("support", ascending=False)
+    multi.to_csv(f"{OUT_DIR}/frequent_itemsets.csv", index=False)
+    print(f"\nTop 10 frequent itemsets (size>=2):\n"
+          f"{multi.head(10).to_string(index=False)}")
+
+    rules = generate_rules(freq, MIN_CONFIDENCE, MIN_LIFT)
+    rules.to_csv(f"{OUT_DIR}/association_rules.csv", index=False)
+    print(f"\nRules generated: {len(rules)}")
+    print("Top 10 rules by lift:")
+    print(rules.head(10).to_string(index=False))
+
+    # Chart 1: top products
+    plt.figure(figsize=(8, 5))
+    singles.head(12)[::-1].plot(kind="barh", color="#f0ad4e")
+    plt.xlabel("Support (fraction of baskets)")
+    plt.title("Top 12 Frequently Purchased Products")
+    plt.tight_layout()
+    plt.savefig(f"{OUT_DIR}/top_products.png", dpi=120)
+    plt.close()
+
+    # Chart 2: support vs confidence, coloured by lift
+    if len(rules):
+        plt.figure(figsize=(7, 5))
+        sc = plt.scatter(rules["support"], rules["confidence"],
+                         c=rules["lift"], cmap="viridis", s=60, edgecolor="k")
+        plt.colorbar(sc, label="Lift")
+        plt.xlabel("Support")
+        plt.ylabel("Confidence")
+        plt.title("Association Rules: Support vs Confidence")
+        plt.tight_layout()
+        plt.savefig(f"{OUT_DIR}/rules_scatter.png", dpi=120)
+        plt.close()
+    return rules
+
+
+# ===============================================================
+# STEP 6: CUSTOMER SEGMENTATION - RFM + K-MEANS
+# ===============================================================
+def run_clustering(conn):
+    banner("STEP 6: Customer segmentation (RFM + K-Means)")
+    rfm = pd.read_sql_query("""
+        SELECT c.customer_id,
+               CAST(julianday('2025-01-01') - julianday(MAX(o.order_date)) AS INT) AS recency,
+               COUNT(DISTINCT o.order_id)                AS frequency,
+               SUM(oi.quantity * p.price)                AS monetary
+        FROM customers c
+        JOIN orders o       ON o.customer_id = c.customer_id
+        JOIN order_items oi ON oi.order_id   = o.order_id
+        JOIN products p     ON p.product_id  = oi.product_id
+        GROUP BY c.customer_id
+    """, conn)
+    print(f"RFM table built for {len(rfm):,} customers")
+
+    # log-transform skewed features then scale
+    X = rfm[["recency", "frequency", "monetary"]].copy()
+    X["frequency"] = np.log1p(X["frequency"])
+    X["monetary"] = np.log1p(X["monetary"])
+    Xs = StandardScaler().fit_transform(X)
+
+    # choose k using elbow (inertia) + silhouette
+    ks, inertias, sils = list(range(2, 8)), [], []
+    for k in ks:
+        km = KMeans(n_clusters=k, n_init=10, random_state=SEED).fit(Xs)
+        inertias.append(km.inertia_)
+        sils.append(silhouette_score(Xs, km.labels_,
+                                     sample_size=min(2000, len(Xs)),
+                                     random_state=SEED))
+    print("\n k | inertia  | silhouette")
+    for k, i, s in zip(ks, inertias, sils):
+        print(f" {k} | {i:8.1f} | {s:.3f}")
+    best_k = 4        # business-friendly number of segments
+    print(f"\nUsing k = {best_k} segments (best silhouette at k="
+          f"{ks[int(np.argmax(sils))]})")
+
+    fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+    ax[0].plot(ks, inertias, "o-")
+    ax[0].set(title="Elbow Method", xlabel="k", ylabel="Inertia")
+    ax[1].plot(ks, sils, "s-", color="green")
+    ax[1].set(title="Silhouette Score", xlabel="k", ylabel="Score")
+    plt.tight_layout()
+    plt.savefig(f"{OUT_DIR}/choose_k.png", dpi=120)
+    plt.close()
+
+    km = KMeans(n_clusters=best_k, n_init=10, random_state=SEED).fit(Xs)
+    rfm["cluster"] = km.labels_
+
+    # name the segments from their average RFM profile
+    prof = rfm.groupby("cluster")[["recency", "frequency", "monetary"]].mean()
+    names = {}
+    remaining = set(prof.index)
+    c = prof.loc[list(remaining), "monetary"].idxmax();      names[c] = "Champions (high value)"; remaining.discard(c)
+    c = prof.loc[list(remaining), "recency"].idxmax();       names[c] = "Lost / Churned";         remaining.discard(c)
+    c = prof.loc[list(remaining), "frequency"].idxmax();     names[c] = "Loyal Regulars";         remaining.discard(c)
+    for c in remaining:
+        names[c] = "Occasional Buyers"
+    rfm["segment"] = rfm["cluster"].map(names)
+
+    summary = (rfm.groupby("segment")
+               .agg(customers=("customer_id", "count"),
+                    avg_recency_days=("recency", "mean"),
+                    avg_orders=("frequency", "mean"),
+                    avg_spend=("monetary", "mean"),
+                    total_revenue=("monetary", "sum"))
+               .round(1).sort_values("total_revenue", ascending=False))
+    print("\nSegment summary:")
+    print(summary.to_string())
+    summary.to_csv(f"{OUT_DIR}/segment_summary.csv")
+    rfm.to_csv(f"{OUT_DIR}/customer_segments.csv", index=False)
+
+    # PCA 2-D scatter
+    pts = PCA(n_components=2, random_state=SEED).fit_transform(Xs)
+    plt.figure(figsize=(7, 5))
+    for seg in rfm["segment"].unique():
+        m = (rfm["segment"] == seg).values
+        plt.scatter(pts[m, 0], pts[m, 1], s=10, label=seg, alpha=0.6)
+    plt.legend()
+    plt.xlabel("PCA 1")
+    plt.ylabel("PCA 2")
+    plt.title("Customer Segments (K-Means on RFM, PCA view)")
+    plt.tight_layout()
+    plt.savefig(f"{OUT_DIR}/customer_segments.png", dpi=120)
+    plt.close()
+
+    # Segment sizes pie
+    plt.figure(figsize=(5, 5))
+    summary["customers"].plot(kind="pie", autopct="%1.1f%%", ylabel="")
+    plt.title("Customer Segment Distribution")
+    plt.tight_layout()
+    plt.savefig(f"{OUT_DIR}/segment_distribution.png", dpi=120)
+    plt.close()
+    return rfm
+
+
+# ===============================================================
+# STEP 7: BUSINESS INSIGHTS  (combine both mining techniques)
+# ===============================================================
+def business_insights(conn, rules, rfm):
+    banner("STEP 7: Business insights & recommendations")
+    if len(rules):
+        r = rules.iloc[0]
+        print(f"* Strongest rule : {r['antecedent']} -> {r['consequent']} "
+              f"(lift {r['lift']}, confidence {r['confidence']:.0%})")
+        print("  Action: bundle / place these products together; "
+              "cross-sell on checkout.")
+    seg = (rfm.groupby("segment")["monetary"].sum()
+           .sort_values(ascending=False))
+    share = seg / seg.sum()
+    top = seg.index[0]
+    print(f"* '{top}' brings {share.iloc[0]:.0%} of revenue "
+          f"-> reward with loyalty offers.")
+    if "Lost / Churned" in seg.index:
+        print(f"* 'Lost / Churned' = {share['Lost / Churned']:.0%} of revenue "
+              "-> run win-back campaigns.")
+
+    # Segment-specific top products (SQL join with clusters)
+    seg_map = rfm[["customer_id", "segment"]]
+    seg_map.to_sql("tmp_segments", conn, if_exists="replace", index=False)
+    df = pd.read_sql_query("""
+        SELECT s.segment, p.name AS product, SUM(oi.quantity) AS units
+        FROM tmp_segments s
+        JOIN orders o       ON o.customer_id = s.customer_id
+        JOIN order_items oi ON oi.order_id   = o.order_id
+        JOIN products p     ON p.product_id  = oi.product_id
+        GROUP BY s.segment, p.name
+    """, conn)
+    top3 = (df.sort_values("units", ascending=False)
+              .groupby("segment").head(3)
+              .sort_values(["segment", "units"], ascending=[True, False]))
+    print("\nTop 3 products per segment:")
+    print(top3.to_string(index=False))
+    top3.to_csv(f"{OUT_DIR}/top_products_per_segment.csv", index=False)
+    conn.execute("DROP TABLE IF EXISTS tmp_segments")
+
+
+# ===============================================================
+# MAIN
+# ===============================================================
+def main():
+    t_start = time.time()
+    if os.path.exists(DB_FILE):
+        os.remove(DB_FILE)
+    conn = sqlite3.connect(DB_FILE)
+    conn.execute("PRAGMA foreign_keys = ON")
+
+    create_database(conn)       # CO1, CO2 - design + load
+    demo_transaction(conn)      # CO2      - ACID
+    demo_indexing(conn)         # CO3      - indexing / optimisation
+    demo_distributed(conn)      # CO1,4,5  - sharding + consistency
+    rules = run_association_mining(conn)   # data mining
+    rfm = run_clustering(conn)             # data mining
+    business_insights(conn, rules, rfm)
+
+    conn.close()
+    banner(f"DONE in {time.time() - t_start:.1f}s - results saved in {OUT_DIR}")
+    for f in sorted(os.listdir(OUT_DIR)):
+        print("  -", f)
+
+
+if __name__ == "__main__":
+    main()
