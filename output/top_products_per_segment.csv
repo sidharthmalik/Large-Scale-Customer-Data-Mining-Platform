@@ -1,0 +1,13 @@
+segment,product,units
+Champions (high value),Milk,13888
+Champions (high value),Bread,11921
+Champions (high value),Butter,8998
+Lost / Churned,Milk,1533
+Lost / Churned,Bread,1262
+Lost / Churned,Soda,931
+Loyal Regulars,Milk,9382
+Loyal Regulars,Bread,8283
+Loyal Regulars,Butter,6095
+Occasional Buyers,Milk,2513
+Occasional Buyers,Bread,2330
+Occasional Buyers,Butter,1690
